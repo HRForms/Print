@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Form Submission — Printable View</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Helvetica,Arial,sans-serif;background:#f0f2f8;color:#1c1c2e;font-size:13px;line-height:1.6;padding:32px 40px}
+.loading{text-align:center;padding:80px 20px;color:#52526e;font-size:15px}
+.error{text-align:center;padding:80px 20px;color:#c0392b;font-size:14px}
+.hdr{border-radius:8px;padding:20px 28px;margin-bottom:0;color:#fff}
+.hdr h1{font-size:20px;font-weight:700;margin-bottom:4px}
+.hdr p{font-size:12px;opacity:.8;margin-top:2px}
+.sec{margin-bottom:0;border:1px solid #e2e2ec;border-top:none}
+.sec:last-of-type{border-radius:0 0 8px 8px}
+.sec-ttl{padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border-top:3px solid}
+table{width:100%;border-collapse:collapse}
+tr:nth-child(even){background:#f8f9fc}
+td{padding:10px 12px 10px 16px;vertical-align:top;border-bottom:1px solid #eaeaf0;font-size:12px;line-height:1.5}
+td:first-child{width:36%;font-weight:700;color:#52526e}
+td.empty{color:#bbb;font-style:italic}
+.ftr{margin-top:20px;padding-top:12px;border-top:1px solid #e2e2ec;font-size:10px;color:#9090a8;text-align:center}
+.toolbar{display:flex;gap:10px;margin-bottom:24px;align-items:center;flex-wrap:wrap}
+.pbtn{padding:9px 22px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none}
+.pbtn.primary{background:#2d5be3;color:#fff}
+.pbtn.secondary{background:#fff;color:#1c1c2e;border:1px solid #d0d0e0}
+.ref-badge{font-size:11px;color:#52526e;background:#fff;border:1px solid #e2e2ec;border-radius:6px;padding:4px 10px;margin-left:auto}
+@media print{
+  .toolbar{display:none!important}
+  body{background:#fff;padding:16px 20px}
+  .sec{page-break-inside:avoid}
+  tr{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">Loading submission&hellip;</div>
+<div id="content" style="display:none;max-width:760px;margin:0 auto"></div>
+
+<script>
+(function(){
+  // ── Decode + decompress the ?d= parameter ──
+  function getParam(name){
+    var s=new URLSearchParams(window.location.search);
+    return s.get(name)||'';
+  }
+
+  function decode(str){
+    // URL-safe base64 → standard base64
+    str=str.replace(/-/g,'+').replace(/_/g,'/');
+    while(str.length%4) str+='=';
+    try{
+      // Decode base64 → binary → UTF-8
+      var bin=atob(str);
+      var bytes=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      return decodeURIComponent(escape(String.fromCharCode.apply(null,bytes)));
+    }catch(e){
+      return null;
+    }
+  }
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  function render(d){
+    var accent=d.accent||'#2d5be3';
+    var accentDark=d.accentDark||'#1a3caa';
+    var content=document.getElementById('content');
+    var html='';
+
+    // Toolbar
+    html+='<div class="toolbar">'
+      +'<button class="pbtn primary" onclick="window.print()">&#128438; Save as PDF / Print</button>'
+      +(d.refVal?'<span class="ref-badge">'+esc(d.refVal)+'</span>':'')
+      +'</div>';
+
+    // Header
+    html+='<div class="hdr" style="background:'+esc(accent)+';border-radius:8px 8px 0 0">'
+      +'<h1>'+esc(d.formTitle||'Form Submission')+'</h1>'
+      +(d.company?'<p>'+esc(d.company)+'</p>':'')
+      +(d.ts?'<p>Submitted: '+esc(d.ts)+'</p>':'')
+      +'</div>';
+
+    // Sections
+    (d.secs||[]).forEach(function(sec){
+      html+='<div class="sec">'
+        +'<div class="sec-ttl" style="background:'+esc(accent)+'18;border-top-color:'+esc(accent)+';color:'+esc(accentDark)+'">'+esc(sec.name)+'</div>'
+        +'<table>';
+      (sec.rows||[]).forEach(function(r){
+        var empty=!r.val||!String(r.val).trim();
+        html+='<tr><td>'+esc(r.label)+'</td>'
+          +'<td'+(empty?' class="empty"':'')+'>'+(empty?'&#8212; not answered &#8212;':esc(r.val).replace(/\n/g,'<br>'))+'</td></tr>';
+      });
+      html+='</table></div>';
+    });
+
+    // Footer
+    html+='<div class="ftr">'+esc(d.formTitle||'')+(d.company?' &middot; '+esc(d.company):'')+' &middot; Strictly Confidential</div>';
+
+    content.innerHTML=html;
+    document.title=(d.formTitle||'Form Submission')+' — Printable View';
+    document.getElementById('loading').style.display='none';
+    content.style.display='';
+  }
+
+  var raw=getParam('d');
+  if(!raw){
+    document.getElementById('loading').innerHTML='<div style="color:#c0392b">No submission data found in this link.</div>';
+    return;
+  }
+
+  var json=decode(raw);
+  if(!json){
+    document.getElementById('loading').innerHTML='<div style="color:#c0392b">Could not decode submission data. The link may be corrupted.</div>';
+    return;
+  }
+
+  var data;
+  try{ data=JSON.parse(json); }
+  catch(e){
+    document.getElementById('loading').innerHTML='<div style="color:#c0392b">Could not parse submission data.</div>';
+    return;
+  }
+
+  render(data);
+})();
+</script>
+</body>
+</html>
