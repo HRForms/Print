@@ -41,6 +41,14 @@ footer{text-align:center;font-size:11px;color:#9090a8;padding:18px 20px 30px}
 
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+  function renderVal(val){
+    if(!val||!String(val).trim()) return '— not answered —';
+    return String(val).split('\n').map(function(line){
+      if(line.charAt(0)==='\u2731') return '<strong>'+esc(line.slice(1))+'</strong>';
+      return esc(line);
+    }).join('<br>');
+  }
+
   function b64urlDecode(s){
     var b64 = s.split('-').join('+').split('_').join('/');
     while(b64.length % 4) b64 += '=';
@@ -97,7 +105,7 @@ footer{text-align:center;font-size:11px;color:#9090a8;padding:18px 20px 30px}
         var empty = !r.val || !String(r.val).trim();
         html += '<tr>'
           + '<td class="lbl">'+esc(r.label)+'</td>'
-          + '<td class="val'+(empty?' empty':'')+'">'+(empty ? '— not answered —' : esc(r.val))+'</td>'
+          + '<td class="val'+(empty?' empty':'')+'">'+renderVal(r.val)+'</td>'
           + '</tr>';
       });
       html += '</table></div>';
